@@ -1,0 +1,130 @@
+#!/usr/bin/ruby -w
+
+require 'fileutils'
+require 'tempfile'
+
+def modify_line_if_start_with(line, s)
+  line.start_with?(s) ? modify(line, 0) : line
+end
+
+def modify_line_if_contains(line, s)
+  (index = line.index(s)) ? modify(line, index) : line
+end
+
+def modify(line, index_of_function_name)
+  got_first_open_paren = false
+  parendepth = 0
+  index_of_first_paren_after_function_name = line.index('(',index_of_function_name)
+  return line unless index_of_first_paren_after_function_name
+  func_prefix = line[index_of_function_name..index_of_first_paren_after_function_name]
+  func_prefix.strip!
+  # this will break if there are unmatched parens in strings, etc.
+  (index_of_function_name..line.length - 1).each do |i|
+    ch = line[i..i]
+    case ch
+    when '('
+      got_first_open_paren = true
+      parendepth += 1
+    when ')'
+      parendepth -= 1
+    when '{'
+      break if parendepth == 0 && got_first_open_paren
+    end
+    index_of_function_name += 1
+  end
+
+  if line.index('{', index_of_function_name)
+    piece1 = line[0..index_of_function_name]
+    piece2 = line[index_of_function_name..line.length - 1]
+    piece2.sub!('{', "console.log('#{func_prefix}' + [].slice.call( arguments ) + ')');")
+    [piece1, piece2].join('')
+  else
+    line
+  end
+end
+
+def jshint_check(in_pathname, jshint_tmp_filename)
+  check = "f.tmp"
+  File.open(check, 'w') do |out_file|
+    File.open(in_pathname, 'r') do |in_file|
+      out_file.puts("/*jshint maxerr: 4294967295 */")
+      in_file.each_line do |line|
+        out_file.puts(line)
+      end
+    end
+  end
+  puts "doing jshint #{check} > #{jshint_tmp_filename}"
+  `jshint #{check} > #{jshint_tmp_filename}`
+  File.delete(check)
+end
+
+def jshint_diff(in_file, out_file)
+  a = "#{in_file}.jshint"
+  b = "#{out_file}.jshint"
+  jshint_check(in_file, a)
+  jshint_check(out_file, b)
+  puts `diff #{a} #{b} --side-by-side -W250`
+end
+
+if defined?(ARGV)
+  args = ARGV.collect{|a|a}
+  use_jshint = args.delete('--jshint')
+end
+
+if defined?(args) && args.length > 0 && args.length < 3
+  in_pathname = args.first
+  lines_to_skip = args.length == 2 ? args[1].split(',').collect{|n|n.to_i} : []
+  out_pathname = File.join("#{File.dirname(in_pathname)}", "noisy_#{File.basename(in_pathname)}")
+  temp_file = Tempfile.new("#{out_pathname}.tmp")
+  begin
+    puts "Will skip line \#s: #{lines_to_skip.join(', ')}"
+    File.open(in_pathname, 'r') do |file|
+      #temp_file.puts("/*jshint maxerr: 4294967295 */")
+      line_num = 0
+      file.each_line do |line|
+        line_num += 1
+        if lines_to_skip.include?(line_num)
+          puts "Skipping line #{line_num}: #{line}"
+        else
+          puts "Read: #{line}"
+          #TODO: clean up with regexps
+          index = nil
+          orig_line = line
+          line = modify_line_if_start_with(line, 'function ')
+          line = modify_line_if_start_with(line, 'function(')
+          line = modify_line_if_start_with(line, '(function ')
+          line = modify_line_if_start_with(line, '(function(')
+          line = modify_line_if_start_with(line, '[function ')
+          line = modify_line_if_start_with(line, '[function(')
+          line = modify_line_if_start_with(line, '{function ')
+          line = modify_line_if_start_with(line, '{function(')
+          line = modify_line_if_start_with(line, ':function ')
+          line = modify_line_if_start_with(line, ':function(')
+          line = modify_line_if_contains(line, ' function ')
+          line = modify_line_if_contains(line, ' function(')
+          line = modify_line_if_contains(line, '(function(')
+          line = modify_line_if_contains(line, '(function ')
+          line = modify_line_if_contains(line, '[function(')
+          line = modify_line_if_contains(line, '[function ')
+          line = modify_line_if_contains(line, '{function(')
+          line = modify_line_if_contains(line, '{function ')
+          line = modify_line_if_contains(line, ':function(')
+          line = modify_line_if_contains(line, ':function ')
+          puts "warning line\##{line_num}: didn't convert: #{line}" if orig_line == line && line['function']
+        end
+        temp_file.puts(line)
+      end
+      
+    end
+
+    FileUtils.mv(temp_file.path, out_pathname)
+    if use_jshint
+      jshint_diff in_pathname, out_pathname
+    end
+  ensure
+    temp_file.close
+    temp_file.unlink
+  end
+else
+  puts "usage: noisify.js.rb some_file.js"
+end
