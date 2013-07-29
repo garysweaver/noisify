@@ -24,11 +24,11 @@ If you want to run [JSHint][jshint] before and after and diff (requires jshint a
 
 ## Example
 
-Noisify [Angular][angular] v1.1.5:
+Noisify [Angular][angular] v1.1.5 (excluding line# 6339 which defines consoleLog):
 
 ```
 wget https://ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular.js
-./noisify angular.js
+./noisify angular.js 6339
 ```
 
 Then just back your original angular.js in your project and replace it with noisy_angular.js. Resulting hacked version of angular not work properly for you, but seemed to when I tried. Please do not report issues to the Angular team related to your modified version.
