@@ -30,7 +30,6 @@ Noisify [Angular][angular] v1.1.5:
 wget https://ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular.js
 ./noisify angular.js
 ```
-(note: was just hacking to try to get a working version of it, so all of those line#s might not need exclusion, or maybe many more need exclusion, or maybe it just won't work.)
 
 Then just back your original angular.js in your project and replace it with noisy_angular.js. May not work properly, and line#s may need to be different (e.g. for other versions of Angular).
 
