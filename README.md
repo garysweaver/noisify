@@ -31,9 +31,15 @@ wget https://ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular.js
 ./noisify angular.js
 ```
 
-Then just back your original angular.js in your project and replace it with noisy_angular.js. May not work properly, and line#s may need to be different (e.g. for other versions of Angular).
+Then just back your original angular.js in your project and replace it with noisy_angular.js. Resulting hacked version of angular not work properly for you, but seemed to when I tried. Please do not report issues to the Angular team related to your modified version.
 
-If you diff, among the many other changes, you'll see:
+If you:
+
+```
+diff angular.js noisy_angular.js
+```
+
+among many other changes, you'll see:
 
 ```
 < function forEach(obj, iterator, context) {
@@ -41,7 +47,7 @@ If you diff, among the many other changes, you'll see:
 > function forEach(obj, iterator, context) {console.log('function forEach(' + [].slice.call( arguments ) + ')');
 ```
 
-And when you run in console.log, among the other many log statements, it might contain the following, indicating the forEach was called with an empty argument and a anonymous function that takes attr:
+And when you run in console.log, among the other many log statements, it might contain something like the following, indicating the forEach was called with an empty argument and the following anonymous function:
 
 ```
 function forEach(,function (attr) {
@@ -52,6 +58,10 @@ function forEach(,function (attr) {
             }
           }) 
 ```
+
+and when that anonymous function is called, it gets logged, and so on. Yay trace logging!
+
+When done tracing an issue, replace the JavaScript file with the original version.
 
 ## License
 
